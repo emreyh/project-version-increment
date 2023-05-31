@@ -1,0 +1,40 @@
+<!-- Plugin Configuration File. Read more: https://plugins.jetbrains.com/docs/intellij/plugin-configuration-file.html -->
+<idea-plugin>
+    <!-- Unique identifier of the plugin. It should be FQN. It cannot be changed between the plugin versions. -->
+    <id>com.devops.emreyh.project-version-increment</id>
+
+    <!-- Public plugin name should be written in Title Case.
+         Guidelines: https://plugins.jetbrains.com/docs/marketplace/plugin-overview-page.html#plugin-name -->
+    <name>Project Version Increment</name>
+
+    <!-- A displayed Vendor name or Organization ID displayed on the Plugins Page. -->
+    <vendor email="emre.reyhanlioglu@gmail.com" url="https://github.com/emreyh">emreyh</vendor>
+
+    <description><![CDATA[
+    A plugin that increments the version number in the pom.xml and Chart.yaml files.
+  ]]></description>
+
+
+    <actions>
+        <group id="ProjectMenu">
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+            <action id="incrementVersionNumber"
+                    class="com.devops.emreyh.projectversionincrement.action.IncrementVersionAction"
+                    text="Increment Version Number"
+                    description="Increment version in pom.xml">
+                <keyboard-shortcut first-keystroke="Ctrl Alt 4" keymap="$default"/>
+            </action>
+        </group>
+    </actions>
+
+    <!-- Product and plugin compatibility requirements.
+         Read more: https://plugins.jetbrains.com/docs/intellij/plugin-compatibility.html -->
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.vcs</depends>
+
+    <!-- Extension points defined by the plugin.
+         Read more: https://plugins.jetbrains.com/docs/intellij/plugin-extension-points.html -->
+    <extensions defaultExtensionNs="com.intellij">
+
+    </extensions>
+</idea-plugin>
