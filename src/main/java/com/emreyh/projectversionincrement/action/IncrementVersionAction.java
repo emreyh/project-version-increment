@@ -133,22 +133,32 @@ public class IncrementVersionAction extends AnAction {
 
   private void updatePomVersion(Project project, String newVersion) {
     File pomFile = getPomFile(project);
-    if (pomFile != null && pomFile.exists()) {
-      try {
-        Document document = getDocument(pomFile);
-        Node versionNode = getVersionNode(document);
-        if (versionNode != null) {
-          versionNode.setTextContent(newVersion);
-          writePom(pomFile, document);
-          reformatPom(project, pomFile);
-        } else {
-          System.out.println("Version node not found in pom.xml");
-        }
-      } catch (Exception e) {
-        e.printStackTrace();
-      }
-    } else {
+    if (pomFile == null || !pomFile.exists()) {
       System.out.println("pom.xml file does not exist");
+      return;
+    }
+
+    try {
+      Document document = getDocument(pomFile);
+      Node versionNode = getVersionNode(document);
+      if (versionNode == null) {
+        System.out.println("Version node not found in pom.xml");
+        return;
+      }
+
+      String versionProperty = versionNode.getTextContent();
+      if (versionProperty.startsWith("${") && versionProperty.endsWith("}")) {
+        String versionPropertyName = versionProperty.substring(2, versionProperty.length() - 1);
+        Node versionPropertyNode = getVersionPropertyNode(document, versionPropertyName);
+        versionPropertyNode.setTextContent(newVersion);
+      } else {
+        versionNode.setTextContent(newVersion);
+      }
+
+      writePom(pomFile, document);
+      reformatPom(project, pomFile);
+    } catch (Exception e) {
+      e.printStackTrace();
     }
   }
 
@@ -173,6 +183,18 @@ public class IncrementVersionAction extends AnAction {
     XPath xpath = xpathFactory.newXPath();
     XPathExpression expr = xpath.compile("/project/version");
     return (Node) expr.evaluate(document, XPathConstants.NODE);
+  }
+
+  private Node getVersionPropertyNode(Document document, String propertyName) {
+    try {
+      XPathFactory xpathFactory = XPathFactory.newInstance();
+      XPath xpath = xpathFactory.newXPath();
+      XPathExpression expr = xpath.compile("/project/properties/" + propertyName);
+      return (Node) expr.evaluate(document, XPathConstants.NODE);
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+    return null;
   }
 
   private Document getDocument(File pomFile)
