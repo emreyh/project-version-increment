@@ -14,8 +14,6 @@ With this plugin, you can easily update the version numbers of your projects in 
                     class="com.emreyh.projectversionincrement.action.IncrementVersionAction"
                     text="Increment Version Number"
                     description="Increment version in pom.xml">
-                <keyboard-shortcut first-keystroke="Ctrl Alt `,`" keymap="Eclipse"/>
-                <keyboard-shortcut first-keystroke="Ctrl Alt `,`" keymap="$default"/>
             </action>
         </group>
     </actions>

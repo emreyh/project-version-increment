@@ -8,9 +8,11 @@ import com.intellij.openapi.vfs.LocalFileSystem;
 import com.intellij.openapi.vfs.VfsUtil;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.vcsUtil.VcsUtil;
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
+import org.jetbrains.annotations.NotNull;
+import org.w3c.dom.Document;
+import org.w3c.dom.Node;
+import org.xml.sax.SAXException;
+
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
@@ -24,10 +26,9 @@ import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathExpression;
 import javax.xml.xpath.XPathExpressionException;
 import javax.xml.xpath.XPathFactory;
-import org.jetbrains.annotations.NotNull;
-import org.w3c.dom.Document;
-import org.w3c.dom.Node;
-import org.xml.sax.SAXException;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 
 public class IncrementVersionAction extends AnAction {
 
@@ -41,61 +42,130 @@ public class IncrementVersionAction extends AnAction {
   }
 
   private void updateVersionNumber(Project project) {
+    String chartFilePath = project.getBasePath() + "/helm/Chart.yaml";
+    File chartFile = new File(chartFilePath);
+    if (!chartFile.exists()) {
+      System.out.println("Chart.yaml file does not exist");
+      return;
+    }
+
     try {
-      String projectPath = project.getBasePath();
+      // Read the contents of the Chart.yaml file
+      String chartFileContents = new String(Files.readAllBytes(chartFile.toPath()));
 
-      File pomFile = new File(projectPath + "/pom.xml");
-      if (!pomFile.exists()) {
-        System.out.println("pom.xml file is not exists");
+      // Extract current version from Chart.yaml
+      String currentVersion = extractVersionFromChartYaml(chartFileContents);
+      if (currentVersion == null) {
+        System.out.println("Invalid version format in Chart.yaml");
         return;
       }
 
-      Document document = getDocument(pomFile);
-      Node versionNode = getVersionNode(document);
-      String currentVersion = versionNode.getTextContent();
+      // Increment version number
+      String newVersion = incrementVersion(currentVersion);
 
-      String[] versionArray = currentVersion.split("\\.");
-      if (versionArray.length != 3) {
-        System.out.println(
-            "Project version number not incremented. Because version number not valid.");
-        return;
-      }
+      // Update Chart.yaml
+      chartFileContents = updateVersionInChartYaml(chartFileContents, newVersion);
+      Files.write(chartFile.toPath(), chartFileContents.getBytes());
 
-      String newVersion = buildNewVersion(versionArray);
-      versionNode.setTextContent(newVersion);
+      // Update pom.xml
+      updatePomVersion(project, newVersion);
 
-      writePom(pomFile, document);
-      reformatPom(project, pomFile);
+      // Refresh the files in IntelliJ IDEA
+      refreshFile(chartFile);
+      refreshFile(getPomFile(project));
 
-      // update Chart.yaml file
-      updateChartYamlFile(project, newVersion);
-
-    } catch (Exception e) {
+    } catch (IOException e) {
       e.printStackTrace();
     }
   }
 
+  private String extractVersionFromChartYaml(String chartFileContents) {
+    String versionTag = "version:";
+    int versionTagIndex = chartFileContents.indexOf(versionTag);
+    if (versionTagIndex != -1) {
+      int versionStartIndex = versionTagIndex + versionTag.length();
+      int versionEndIndex = chartFileContents.indexOf('\n', versionStartIndex);
+      if (versionEndIndex != -1) {
+        return chartFileContents.substring(versionStartIndex, versionEndIndex).trim();
+      }
+    }
+    return null;
+  }
+
+  private String incrementVersion(String currentVersion) {
+    String[] versionArray = currentVersion.split("\\.");
+    if (versionArray.length == 3) {
+      int majorVersion = Integer.parseInt(versionArray[0]);
+      int minorVersion = Integer.parseInt(versionArray[1]);
+      int patchVersion = Integer.parseInt(versionArray[2]);
+
+      if (patchVersion < 100) {
+        versionArray[2] = String.valueOf(++patchVersion);
+      } else if (minorVersion < 100) {
+        versionArray[1] = String.valueOf(++minorVersion);
+        versionArray[2] = "0";
+      } else {
+        versionArray[0] = String.valueOf(++majorVersion);
+        versionArray[1] = "0";
+        versionArray[2] = "0";
+      }
+
+      return String.join(".", versionArray);
+    }
+    return currentVersion;
+  }
+
+  private String updateVersionInChartYaml(String chartFileContents, String newVersion) {
+    String versionTag = "version:";
+    String appVersionTag = "appVersion:";
+
+    // Replace the version field with the new version number
+    chartFileContents =
+        chartFileContents.replaceAll("(?m)^" + versionTag + ".*$", versionTag + " " + newVersion);
+
+    // Replace the appVersion field with the new version number
+    chartFileContents = chartFileContents.replaceAll("(?m)^" + appVersionTag + ".*$",
+        appVersionTag + " " + newVersion);
+
+    return chartFileContents;
+  }
+
+
+  private void updatePomVersion(Project project, String newVersion) {
+    File pomFile = getPomFile(project);
+    if (pomFile != null && pomFile.exists()) {
+      try {
+        Document document = getDocument(pomFile);
+        Node versionNode = getVersionNode(document);
+        if (versionNode != null) {
+          versionNode.setTextContent(newVersion);
+          writePom(pomFile, document);
+          reformatPom(project, pomFile);
+        } else {
+          System.out.println("Version node not found in pom.xml");
+        }
+      } catch (Exception e) {
+        e.printStackTrace();
+      }
+    } else {
+      System.out.println("pom.xml file does not exist");
+    }
+  }
+
+  private File getPomFile(Project project) {
+    String projectPath = project.getBasePath();
+    if (projectPath != null) {
+      return new File(projectPath + "/pom.xml");
+    }
+    return null;
+  }
+
   private void writePom(File pomFile, Document document) throws TransformerException {
-    // write the updated document to the pom file
     TransformerFactory transformerFactory = TransformerFactory.newInstance();
     Transformer transformer = transformerFactory.newTransformer();
     DOMSource source = new DOMSource(document);
     StreamResult result = new StreamResult(pomFile);
     transformer.transform(source, result);
-  }
-
-  @NotNull
-  private String buildNewVersion(String[] versionArray) {
-//    int majorVersion = Integer.parseInt(versionArray[0]);
-    int minorVersion = Integer.parseInt(versionArray[1]);
-    int patchVersion = Integer.parseInt(versionArray[2]);
-
-    if (patchVersion < 100) {
-      versionArray[2] = String.valueOf(++patchVersion);
-    } else if (minorVersion < 100) {
-      versionArray[1] = String.valueOf(++minorVersion);
-    }
-    return String.join(".", versionArray);
   }
 
   private Node getVersionNode(Document document) throws XPathExpressionException {
@@ -114,43 +184,16 @@ public class IncrementVersionAction extends AnAction {
 
   private void reformatPom(Project project, File pomFile) {
     VirtualFile virtualFile = VcsUtil.getVirtualFile(pomFile);
-    assert virtualFile != null;
-    VcsDirtyScopeManager.getInstance(project).dirDirtyRecursively(virtualFile);
-    refreshFile(pomFile);
-  }
-
-  private void updateChartYamlFile(Project project, String newVersion) {
-    String chartFilePath = project.getBasePath() + "/helm/Chart.yaml";
-    File chartFile = new File(chartFilePath);
-    if (!chartFile.exists()) {
-      System.out.println("Chart.yaml file does not exist");
-      return;
-    }
-
-    try {
-      // Read the contents of the Chart.yaml file
-      String chartFileContents = new String(Files.readAllBytes(chartFile.toPath()));
-
-      // Replace the version and appVersion fields with the new version number
-      chartFileContents =
-          chartFileContents.replaceAll("(?m)^version:.*$", "version: " + newVersion);
-      chartFileContents =
-          chartFileContents.replaceAll("(?m)^appVersion:.*$", "appVersion: " + newVersion);
-
-      // Write the updated contents back to the Chart.yaml file
-      Files.write(chartFile.toPath(), chartFileContents.getBytes());
-
-      refreshFile(chartFile);
-    } catch (IOException e) {
-      e.printStackTrace();
+    if (virtualFile != null) {
+      VcsDirtyScopeManager.getInstance(project).dirDirtyRecursively(virtualFile);
+      refreshFile(pomFile);
     }
   }
 
   private void refreshFile(File file) {
-    // Refresh the file in IntelliJ IDEA
-    VirtualFile virtualChartFile = LocalFileSystem.getInstance().findFileByIoFile(file);
-    if (virtualChartFile != null) {
-      VfsUtil.markDirtyAndRefresh(false, true, true, virtualChartFile);
+    VirtualFile virtualFile = LocalFileSystem.getInstance().findFileByIoFile(file);
+    if (virtualFile != null) {
+      VfsUtil.markDirtyAndRefresh(false, true, true, virtualFile);
     }
   }
 }
