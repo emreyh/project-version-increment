@@ -8,8 +8,8 @@ dependencies {
     implementation("com.fasterxml.jackson.core:jackson-databind:2.14.0")
 }
 
-group = "com.devops.emreyh"
-version = "1.0-SNAPSHOT"
+group = "com.emreyh.projectversionincrement"
+version = "1.0.1"
 
 repositories {
     mavenCentral()
