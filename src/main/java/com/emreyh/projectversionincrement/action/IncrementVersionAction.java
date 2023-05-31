@@ -1,9 +1,11 @@
-package com.devops.emreyh.projectversionincrement.action;
+package com.emreyh.projectversionincrement.action;
 
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vcs.changes.VcsDirtyScopeManager;
+import com.intellij.openapi.vfs.LocalFileSystem;
+import com.intellij.openapi.vfs.VfsUtil;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.vcsUtil.VcsUtil;
 import java.io.File;
@@ -112,12 +114,9 @@ public class IncrementVersionAction extends AnAction {
 
   private void reformatPom(Project project, File pomFile) {
     VirtualFile virtualFile = VcsUtil.getVirtualFile(pomFile);
-//    PsiFile psiFile = PsiManager.getInstance(project).findFile(virtualFile);
-//    WriteCommandAction.runWriteCommandAction(project, () -> {
-//      CodeStyleManager.getInstance(project).reformat(psiFile);
-//    });
     assert virtualFile != null;
     VcsDirtyScopeManager.getInstance(project).dirDirtyRecursively(virtualFile);
+    refreshFile(pomFile);
   }
 
   private void updateChartYamlFile(Project project, String newVersion) {
@@ -141,8 +140,17 @@ public class IncrementVersionAction extends AnAction {
       // Write the updated contents back to the Chart.yaml file
       Files.write(chartFile.toPath(), chartFileContents.getBytes());
 
+      refreshFile(chartFile);
     } catch (IOException e) {
       e.printStackTrace();
+    }
+  }
+
+  private void refreshFile(File file) {
+    // Refresh the file in IntelliJ IDEA
+    VirtualFile virtualChartFile = LocalFileSystem.getInstance().findFileByIoFile(file);
+    if (virtualChartFile != null) {
+      VfsUtil.markDirtyAndRefresh(false, true, true, virtualChartFile);
     }
   }
 }
