@@ -5,7 +5,6 @@ This is a utility tool for incrementing the version number of a project. It is d
 ## Features
 
 - Automatically increments the version number in the Helm chart (`Chart.yaml`) and Maven project (`pom.xml`) files.
-- Supports both single-level and multi-level version numbers (e.g., `1.0.0` or `1.0.0-SNAPSHOT`).
 - Updates the project files and refreshes them in IntelliJ IDEA for immediate use.
 
 ## How to Use
