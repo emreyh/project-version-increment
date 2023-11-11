@@ -8,11 +8,6 @@ This is a utility tool for incrementing the version number of a project. It is d
 - Updates the project files and refreshes them in IntelliJ IDEA for immediate use.
 
 ## How to Use
-# Project Version Increment
-
-Project Version Increment is a plugin for IntelliJ IDEA that allows you to automatically increment the version number of your project. This plugin is useful for projects that follow a versioning scheme and require frequent version updates.
-
-## How to Use
 
 To install the Project Version Increment plugin and use it in IntelliJ IDEA, follow the steps below:
 
